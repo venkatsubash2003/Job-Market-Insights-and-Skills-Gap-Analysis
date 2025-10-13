@@ -1,0 +1,8 @@
+pandas>=2.2
+polars>=1.4
+sqlalchemy>=2.0
+psycopg[binary]>=3.2
+python-dotenv>=1.0
+tqdm>=4.66
+black>=24.0
+ruff>=0.5
