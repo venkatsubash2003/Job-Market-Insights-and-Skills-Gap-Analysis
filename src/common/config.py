@@ -5,6 +5,7 @@ from dotenv import load_dotenv
 
 load_dotenv()
 
+
 @dataclass(frozen=True)
 class Settings:
     db_host: str = os.getenv("POSTGRES_HOST", "localhost")
@@ -16,5 +17,6 @@ class Settings:
     @property
     def sqlalchemy_url(self) -> str:
         return f"postgresql+psycopg://{self.db_user}:{self.db_pass}@{self.db_host}:{self.db_port}/{self.db_name}"
+
 
 settings = Settings()
