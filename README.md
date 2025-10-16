@@ -405,3 +405,6 @@ make load-mock
 * ✅ Config module + ingestion script
 
 **Next (Step 2):** Implement rule‑based skill extraction (spaCy PhraseMatcher) and persist to `skills` + `jobs_skills`.
+
+
+## Slight change in README
