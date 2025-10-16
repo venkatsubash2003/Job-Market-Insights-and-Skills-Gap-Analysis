@@ -6,3 +6,4 @@ python-dotenv>=1.0
 tqdm>=4.66
 black>=24.0
 ruff>=0.5
+spacy>=3.7
