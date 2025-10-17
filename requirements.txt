@@ -7,3 +7,5 @@ tqdm>=4.66
 black>=24.0
 ruff>=0.5
 spacy>=3.7
+streamlit>=1.38
+plotly>=5.24
