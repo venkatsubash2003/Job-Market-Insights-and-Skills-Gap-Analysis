@@ -47,4 +47,5 @@ top-pairs:
 
 .PHONY: app
 app:
-	streamlit run src/app/dashboard.py
+	PYTHONPATH="$(CURDIR)" streamlit run "src/app/dashboard.py"
+
