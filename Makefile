@@ -49,3 +49,16 @@ top-pairs:
 app:
 	PYTHONPATH="$(CURDIR)" streamlit run "src/app/dashboard.py"
 
+.PHONY: enrich-salary enrich-locations salary-by-skill jobs-by-country
+
+enrich-salary:
+	$(PYTHON) -m src.pipeline.enrich_compensation
+
+enrich-locations:
+	$(PYTHON) -m src.pipeline.enrich_locations
+
+salary-by-skill:
+	docker compose exec -T db sh -lc 'psql -U "$$POSTGRES_USER" -d "$$POSTGRES_DB" -c "SELECT s.skill_norm AS skill, ROUND(AVG(c.min)) AS avg_min, ROUND(AVG(c.max)) AS avg_max, COUNT(*) AS n FROM jobs_skills js JOIN skills s ON s.skill_id=js.skill_id JOIN compensation c ON c.job_id=js.job_id WHERE c.min IS NOT NULL AND c.max IS NOT NULL GROUP BY s.skill_norm ORDER BY n DESC, skill LIMIT 20;"'
+
+jobs-by-country:
+	docker compose exec -T db sh -lc 'psql -U "$$POSTGRES_USER" -d "$$POSTGRES_DB" -c "SELECT COALESCE(country, '\''Unknown'\'' ) AS country, COUNT(*) AS jobs FROM locations GROUP BY COALESCE(country, '\''Unknown'\'') ORDER BY jobs DESC;"'

@@ -63,3 +63,33 @@ HAVING COUNT(DISTINCT job_id) >= 1;
 
 CREATE INDEX IF NOT EXISTS idx_mv_skill_cooccurrence_counts
   ON mv_skill_cooccurrence (pair_count DESC, skill_id_a, skill_id_b);
+
+-- Salary distribution by skill (simple aggregates)
+DROP MATERIALIZED VIEW IF EXISTS mv_salary_by_skill;
+CREATE MATERIALIZED VIEW mv_salary_by_skill AS
+SELECT
+  s.skill_id,
+  COALESCE(s.skill_norm, s.skill_raw) AS skill,
+  AVG(c.min) AS avg_min,
+  AVG(c.max) AS avg_max,
+  COUNT(*)   AS n
+FROM skills s
+JOIN jobs_skills js ON js.skill_id = s.skill_id
+JOIN compensation c ON c.job_id = js.job_id
+WHERE c.min IS NOT NULL AND c.max IS NOT NULL
+GROUP BY s.skill_id, COALESCE(s.skill_norm, s.skill_raw);
+
+CREATE INDEX IF NOT EXISTS idx_mv_salary_by_skill_n
+ON mv_salary_by_skill (n DESC);
+
+-- Jobs by country
+DROP MATERIALIZED VIEW IF EXISTS mv_jobs_by_country;
+CREATE MATERIALIZED VIEW mv_jobs_by_country AS
+SELECT
+  COALESCE(country, 'Unknown') AS country,
+  COUNT(*) AS jobs
+FROM locations
+GROUP BY COALESCE(country, 'Unknown');
+
+CREATE INDEX IF NOT EXISTS idx_mv_jobs_by_country
+ON mv_jobs_by_country (jobs DESC);
