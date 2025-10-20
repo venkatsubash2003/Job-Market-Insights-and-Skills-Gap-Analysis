@@ -173,3 +173,89 @@ else:
     st.plotly_chart(fig_map, use_container_width=True)
 
     st.caption("Tip: This uses lat/lon from the 'locations' table. For more coverage, ensure geocoding is enabled in Step 4.")
+
+
+@st.cache_data(ttl=60)
+def load_skill_trends():
+    q = "SELECT month, skill, job_count FROM mv_monthly_skill_counts"
+    with engine.connect() as c:
+        df = pd.read_sql(text(q), c, parse_dates=["month"])
+    return df
+
+@st.cache_data(ttl=60)
+def load_salary_trends():
+    q = "SELECT month, skill, avg_min, avg_max, n FROM mv_monthly_salary_by_skill"
+    with engine.connect() as c:
+        df = pd.read_sql(text(q), c, parse_dates=["month"])
+    return df
+
+@st.cache_data(ttl=60)
+def load_country_trends():
+    q = "SELECT month, country, job_count FROM mv_monthly_jobs_by_country"
+    with engine.connect() as c:
+        df = pd.read_sql(text(q), c, parse_dates=["month"])
+    return df
+
+@st.cache_data(ttl=60)
+def load_movers():
+    q = "SELECT month, skill, job_count, prev_job_count, mom_growth_pct FROM mv_skill_mom_growth WHERE mom_growth_pct IS NOT NULL"
+    with engine.connect() as c:
+        df = pd.read_sql(text(q), c, parse_dates=["month"])
+    return df
+
+st.subheader("Skill Trends Over Time")
+df_tr = load_skill_trends()
+if df_tr.empty:
+    st.info("No monthly skill data yet.")
+else:
+    skills = sorted(df_tr["skill"].unique().tolist())
+    chosen = st.multiselect("Select skills (up to 8)", skills, skills[:5], max_selections=8)
+    if chosen:
+        sub = df_tr[df_tr["skill"].isin(chosen)].sort_values("month")
+        fig = px.line(sub, x="month", y="job_count", color="skill", markers=True, title="Monthly Job Counts by Skill")
+        st.plotly_chart(fig, use_container_width=True)
+    else:
+        st.info("Select at least one skill to view trendlines.")
+
+st.subheader("Salary Trends by Skill (Avg Min/Max)")
+sal_tr = load_salary_trends()
+if sal_tr.empty:
+    st.info("No salary trends available. Ensure salary enrichment ran and period is annual.")
+else:
+    skills2 = sorted(sal_tr["skill"].unique().tolist())
+    chosen2 = st.multiselect("Select skills for salary trend", skills2, skills2[:5], max_selections=8)
+    if chosen2:
+        s2 = sal_tr[sal_tr["skill"].isin(chosen2)].sort_values("month")
+        s2_long = s2.melt(id_vars=["month","skill","n"], value_vars=["avg_min","avg_max"], var_name="band", value_name="salary")
+        fig2 = px.line(s2_long, x="month", y="salary", color="skill", line_dash="band", markers=True,
+                       title="Average Min/Max Salary Over Time")
+        st.plotly_chart(fig2, use_container_width=True)
+st.subheader("Location Trends (Jobs by Country)")
+ct = load_country_trends()
+if ct.empty:
+    st.info("No country trend data yet.")
+else:
+    countries = sorted(ct["country"].unique().tolist())
+    chosen_cty = st.multiselect("Select countries", countries, countries[:5], max_selections=8)
+    if chosen_cty:
+        csub = ct[ct["country"].isin(chosen_cty)].sort_values("month")
+        fig3 = px.line(csub, x="month", y="job_count", color="country", markers=True, title="Monthly Jobs by Country")
+        st.plotly_chart(fig3, use_container_width=True)
+
+st.subheader("Top Movers (MoM Growth)")
+movers = load_movers()
+if movers.empty:
+    st.info("No movers yet.")
+else:
+    recent_month = movers["month"].max()
+    st.caption(f"Most recent month: {recent_month.date()}")
+    m_recent = movers[movers["month"] == recent_month].dropna(subset=["mom_growth_pct"])
+    top_risers = m_recent.sort_values("mom_growth_pct", ascending=False).head(10)
+    top_fallers = m_recent.sort_values("mom_growth_pct", ascending=True).head(10)
+    col1, col2 = st.columns(2)
+    with col1:
+        st.write("Top Rising Skills (MoM %)")
+        st.dataframe(top_risers[["skill","job_count","prev_job_count","mom_growth_pct"]])
+    with col2:
+        st.write("Top Falling Skills (MoM %)")
+        st.dataframe(top_fallers[["skill","job_count","prev_job_count","mom_growth_pct"]])

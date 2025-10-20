@@ -93,3 +93,93 @@ GROUP BY COALESCE(country, 'Unknown');
 
 CREATE INDEX IF NOT EXISTS idx_mv_jobs_by_country
 ON mv_jobs_by_country (jobs DESC);
+
+
+-- ========== STEP 5: TREND ANALYTICS ==========
+
+-- A) Monthly skill counts (already created in Step 3, ensure present)
+DROP MATERIALIZED VIEW IF EXISTS mv_monthly_skill_counts;
+CREATE MATERIALIZED VIEW mv_monthly_skill_counts AS
+WITH j_clean AS (
+  SELECT job_id, DATE_TRUNC('month', post_date)::date AS month
+  FROM jobs WHERE post_date IS NOT NULL
+)
+SELECT
+  s.skill_id,
+  COALESCE(s.skill_norm, s.skill_raw) AS skill,
+  j_clean.month,
+  COUNT(DISTINCT js.job_id) AS job_count
+FROM skills s
+JOIN jobs_skills js ON js.skill_id = s.skill_id
+JOIN j_clean        ON j_clean.job_id = js.job_id
+GROUP BY s.skill_id, COALESCE(s.skill_norm, s.skill_raw), j_clean.month;
+CREATE INDEX IF NOT EXISTS idx_mv_monthly_skill_counts_skill_month
+  ON mv_monthly_skill_counts (skill, month);
+
+-- B) Monthly salary by skill (avg min/max per month)
+DROP MATERIALIZED VIEW IF EXISTS mv_monthly_salary_by_skill;
+CREATE MATERIALIZED VIEW mv_monthly_salary_by_skill AS
+WITH base AS (
+  SELECT
+    DATE_TRUNC('month', j.post_date)::date AS month,
+    COALESCE(s.skill_norm, s.skill_raw)    AS skill,
+    c.min, c.max, c.currency, c.period
+  FROM jobs j
+  JOIN jobs_skills js ON js.job_id = j.job_id
+  JOIN skills s       ON s.skill_id = js.skill_id
+  JOIN compensation c ON c.job_id = j.job_id
+  WHERE j.post_date IS NOT NULL
+    AND c.min IS NOT NULL AND c.max IS NOT NULL
+    -- Optional: filter to annual only for consistency
+    AND (c.period IS NULL OR c.period = 'year')
+)
+SELECT
+  month, skill,
+  AVG(min) AS avg_min,
+  AVG(max) AS avg_max,
+  COUNT(*) AS n
+FROM base
+GROUP BY month, skill;
+CREATE INDEX IF NOT EXISTS idx_mv_monthly_salary_by_skill
+  ON mv_monthly_salary_by_skill (skill, month);
+
+-- C) Monthly location demand (jobs by country)
+DROP MATERIALIZED VIEW IF EXISTS mv_monthly_jobs_by_country;
+CREATE MATERIALIZED VIEW mv_monthly_jobs_by_country AS
+WITH base AS (
+  SELECT
+    DATE_TRUNC('month', j.post_date)::date AS month,
+    COALESCE(l.country, 'Unknown') AS country,
+    j.job_id
+  FROM jobs j
+  LEFT JOIN locations l ON l.job_id = j.job_id
+  WHERE j.post_date IS NOT NULL
+)
+SELECT month, country, COUNT(DISTINCT job_id) AS job_count
+FROM base
+GROUP BY month, country;
+CREATE INDEX IF NOT EXISTS idx_mv_monthly_jobs_by_country
+  ON mv_monthly_jobs_by_country (country, month);
+
+-- D) Rising/Falling skills (MoM growth)
+DROP MATERIALIZED VIEW IF EXISTS mv_skill_mom_growth;
+CREATE MATERIALIZED VIEW mv_skill_mom_growth AS
+WITH m AS (
+  SELECT skill, month, job_count
+  FROM mv_monthly_skill_counts
+),
+w AS (
+  SELECT
+    skill, month, job_count,
+    LAG(job_count) OVER (PARTITION BY skill ORDER BY month) AS prev_job_count
+  FROM m
+)
+SELECT
+  skill, month, job_count, prev_job_count,
+  CASE
+    WHEN prev_job_count IS NULL OR prev_job_count = 0 THEN NULL
+    ELSE ROUND(100.0 * (job_count - prev_job_count) / prev_job_count, 2)
+  END AS mom_growth_pct
+FROM w;
+CREATE INDEX IF NOT EXISTS idx_mv_skill_mom_growth
+  ON mv_skill_mom_growth (month DESC, mom_growth_pct DESC, skill);

@@ -62,3 +62,24 @@ salary-by-skill:
 
 jobs-by-country:
 	docker compose exec -T db sh -lc 'psql -U "$$POSTGRES_USER" -d "$$POSTGRES_DB" -c "SELECT COALESCE(country, '\''Unknown'\'' ) AS country, COUNT(*) AS jobs FROM locations GROUP BY COALESCE(country, '\''Unknown'\'') ORDER BY jobs DESC;"'
+
+.PHONY: trends-init trends-refresh top-risers top-fallers salary-trend country-trend
+
+# Create/replace the new Step 5 trend MVs (pipe SQL inside container)
+trends-init:
+	cat infra/analytics/ANALYTICS.sql | docker compose exec -T db sh -lc 'psql -U "$$POSTGRES_USER" -d "$$POSTGRES_DB" -f -'
+
+# Reuse your analytics-refresh or add this alias
+trends-refresh: analytics-refresh
+
+top-risers:
+	docker compose exec -T db sh -lc 'psql -U "$$POSTGRES_USER" -d "$$POSTGRES_DB" -c "SELECT skill, month, job_count, prev_job_count, mom_growth_pct FROM mv_skill_mom_growth WHERE mom_growth_pct IS NOT NULL ORDER BY month DESC, mom_growth_pct DESC, skill LIMIT 20;"'
+
+top-fallers:
+	docker compose exec -T db sh -lc 'psql -U "$$POSTGRES_USER" -d "$$POSTGRES_DB" -c "SELECT skill, month, job_count, prev_job_count, mom_growth_pct FROM mv_skill_mom_growth WHERE mom_growth_pct IS NOT NULL ORDER BY month DESC, mom_growth_pct ASC, skill LIMIT 20;"'
+
+salary-trend:
+	docker compose exec -T db sh -lc 'psql -U "$$POSTGRES_USER" -d "$$POSTGRES_DB" -c "SELECT to_char(month, '\''YYYY-MM'\'' ) AS month, skill, ROUND(avg_min) AS avg_min, ROUND(avg_max) AS avg_max, n FROM mv_monthly_salary_by_skill ORDER BY month DESC, n DESC LIMIT 50;"'
+
+country-trend:
+	docker compose exec -T db sh -lc 'psql -U "$$POSTGRES_USER" -d "$$POSTGRES_DB" -c "SELECT to_char(month, '\''YYYY-MM'\'' ) AS month, country, job_count FROM mv_monthly_jobs_by_country ORDER BY month DESC, job_count DESC LIMIT 50;"'
