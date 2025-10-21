@@ -83,3 +83,15 @@ salary-trend:
 
 country-trend:
 	docker compose exec -T db sh -lc 'psql -U "$$POSTGRES_USER" -d "$$POSTGRES_DB" -c "SELECT to_char(month, '\''YYYY-MM'\'' ) AS month, country, job_count FROM mv_monthly_jobs_by_country ORDER BY month DESC, job_count DESC LIMIT 50;"'
+
+
+.PHONY: refresh-all app
+refresh-all:
+	make extract-skills
+	make enrich-salary
+	make enrich-locations
+	make analytics-refresh
+	make trends-refresh
+
+app:
+	PYTHONPATH="$(CURDIR)" streamlit run "src/app/dashboard.py"

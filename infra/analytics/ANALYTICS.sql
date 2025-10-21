@@ -183,3 +183,13 @@ SELECT
 FROM w;
 CREATE INDEX IF NOT EXISTS idx_mv_skill_mom_growth
   ON mv_skill_mom_growth (month DESC, mom_growth_pct DESC, skill);
+
+-- Helpful indexes for interactive filters
+CREATE INDEX IF NOT EXISTS idx_jobs_post_date ON jobs (post_date);
+CREATE INDEX IF NOT EXISTS idx_locations_country ON locations (country);
+CREATE INDEX IF NOT EXISTS idx_jobs_skills_skill_job ON jobs_skills (skill_id, job_id);
+
+-- Ensure trend MVs are indexed for (skill, month) & (country, month)
+CREATE INDEX IF NOT EXISTS idx_mv_msc_skill_month ON mv_monthly_skill_counts (skill, month);
+CREATE INDEX IF NOT EXISTS idx_mv_msal_skill_month ON mv_monthly_salary_by_skill (skill, month);
+CREATE INDEX IF NOT EXISTS idx_mv_mcountry_country_month ON mv_monthly_jobs_by_country (country, month);
