@@ -1,7 +1,7 @@
 # job-market-insights/ (Step 1 scaffold)
 
 A minimal, runnable scaffold so you can `git init`, push to GitHub, bring up Postgres, and load a tiny sample dataset end‑to‑end.
-
+"Check"
 ---
 
 ## 📁 Repository layout
