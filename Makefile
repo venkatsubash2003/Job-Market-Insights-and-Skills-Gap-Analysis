@@ -47,7 +47,8 @@ top-pairs:
 
 .PHONY: app
 app:
-	PYTHONPATH="$(CURDIR)" streamlit run "src/app/dashboard.py"
+	PYTHONPATH="$(CURDIR)" $(PYTHON) -m streamlit run "src/app/dashboard.py"
+
 
 .PHONY: enrich-salary enrich-locations salary-by-skill jobs-by-country
 

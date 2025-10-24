@@ -1,22 +1,18 @@
-from __future__ import annotations
 import os
-from dataclasses import dataclass
 from dotenv import load_dotenv
-
 load_dotenv()
 
+DATABASE_URL = os.getenv("DATABASE_URL")
+if DATABASE_URL:
+    sqlalchemy_url = DATABASE_URL if "sslmode=" in DATABASE_URL else f"{DATABASE_URL}?sslmode=require"
+else:
+    host = os.getenv("POSTGRES_HOST")
+    db   = os.getenv("POSTGRES_DB")
+    user = os.getenv("POSTGRES_USER")
+    pwd  = os.getenv("POSTGRES_PASSWORD")
+    sqlalchemy_url = f"postgresql+psycopg://{user}:{pwd}@{host}/{db}?sslmode=require"
 
-@dataclass(frozen=True)
 class Settings:
-    db_host: str = os.getenv("POSTGRES_HOST", "localhost")
-    db_port: int = int(os.getenv("POSTGRES_PORT", 5432))
-    db_user: str = os.getenv("POSTGRES_USER", "jobs_user")
-    db_pass: str = os.getenv("POSTGRES_PASSWORD", "jobs_pass")
-    db_name: str = os.getenv("POSTGRES_DB", "jobs")
-
-    @property
-    def sqlalchemy_url(self) -> str:
-        return f"postgresql+psycopg://{self.db_user}:{self.db_pass}@{self.db_host}:{self.db_port}/{self.db_name}"
-
+    sqlalchemy_url = sqlalchemy_url
 
 settings = Settings()
