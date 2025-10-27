@@ -1,9 +1,9 @@
 streamlit>=1.38
-sqlalchemy>=2.0
-psycopg[binary]>=3.2
 pandas>=2.2
 plotly>=5.24
 python-dotenv>=1.0
 spacy>=3.8
 en-core-web-sm @ https://github.com/explosion/spacy-models/releases/download/en_core_web_sm-3.8.0/en_core_web_sm-3.8.0-py3-none-any.whl
 geopy>=2.4
+psycopg[binary]>=3.2
+sqlalchemy>=2.0

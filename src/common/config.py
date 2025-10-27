@@ -2,9 +2,21 @@ import os
 from dotenv import load_dotenv
 load_dotenv()
 
+def to_psycopg(url: str) -> str:
+    if not url:
+        return url
+    if url.startswith("postgresql+psycopg://"):
+        return url
+    if url.startswith("postgresql://"):
+        return url.replace("postgresql://", "postgresql+psycopg://", 1)
+    return url
+
 DATABASE_URL = os.getenv("DATABASE_URL")
 if DATABASE_URL:
-    sqlalchemy_url = DATABASE_URL if "sslmode=" in DATABASE_URL else f"{DATABASE_URL}?sslmode=require"
+    sqlalchemy_url = to_psycopg(DATABASE_URL)
+    if "sslmode=" not in sqlalchemy_url:
+        sep = "&" if "?" in sqlalchemy_url else "?"
+        sqlalchemy_url = f"{sqlalchemy_url}{sep}sslmode=require"
 else:
     host = os.getenv("POSTGRES_HOST")
     db   = os.getenv("POSTGRES_DB")
